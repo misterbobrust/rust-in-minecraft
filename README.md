@@ -4,6 +4,15 @@ Facepunch's **Rust** inside **Minecraft 1.21.11** (Fabric): the guns, the buildi
 
 > **Early release.** Everything below works in singleplayer; multiplayer has not been tested yet.
 
+<p align="center">
+  <img src="screenshots/night-base.webp" alt="A base at night" width="49%">
+  <img src="screenshots/doors-and-light.webp" alt="Doors and a glowstone block inside a base" width="49%">
+</p>
+<p align="center">
+  <img src="screenshots/interior.webp" alt="Minecraft blocks placed inside a base, with a torch on the wall" width="60%">
+</p>
+<p align="center"><sub>Shown with the Complementary shader pack through Iris.</sub></p>
+
 **No Rust content is distributed here.** The installer builds the mod's assets on your PC from *your own* copy of Rust. See [How it works](#how-it-works).
 
 ---
