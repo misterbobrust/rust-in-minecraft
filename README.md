@@ -11,7 +11,7 @@ Facepunch's **Rust** inside **Minecraft 1.21.11** (Fabric): the guns, the buildi
 <p align="center">
   <img src="screenshots/interior.webp" alt="Minecraft blocks placed inside a base, with a torch on the wall" width="60%">
 </p>
-<p align="center"><sub>Shown with the Complementary shader pack through Iris.</sub></p>
+<p align="center"><sub>Shown with a shader pack running through Iris.</sub></p>
 
 **No Rust content is distributed here.** The installer builds the mod's assets on your PC from *your own* copy of Rust. See [How it works](#how-it-works).
 
