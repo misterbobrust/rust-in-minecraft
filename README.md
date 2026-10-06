@@ -68,7 +68,7 @@ All items are in the **Rust in Minecraft** creative tab. English and Russian int
 ## Install
 
 1. Download `RustInMinecraft-Installer.exe` from [**Releases**](../../releases/latest).
-2. Close Rust (and any Rust server), then run the installer. Your Rust folder is found automatically, otherwise pick it.
+2. Close Rust, then run the installer. Your Rust folder is found automatically, otherwise pick it.
 3. Choose where to save the result and press **Build the mod**. It takes about 5 minutes on a fast PC, up to 40 on a slow one.
 4. Put **both** jars from the output folder (`rust-in-minecraft-*.jar` and `fabric-api-*.jar`) into your Minecraft `mods` folder.
 5. Start Minecraft with the Fabric 1.21.11 profile.
