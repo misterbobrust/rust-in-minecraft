@@ -1,0 +1,13 @@
+Rust in Minecraft
+Copyright (c) 2026 misterbobrust. All rights reserved.
+
+This software is provided for personal use only: you may download it and play with it.
+You may not copy, modify, decompile, redistribute, re-upload, sell, or use this software or any part of its code
+(including on public or commercial servers, in modpacks, or in other projects) without the prior written permission
+of the copyright holder.
+
+Rust and its models, textures, sounds and animations are the property of Facepunch Studios. This software contains
+none of them: the installer extracts them on the player's own computer from the player's own copy of Rust.
+This project is not affiliated with or endorsed by Facepunch Studios or Mojang Studios.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
