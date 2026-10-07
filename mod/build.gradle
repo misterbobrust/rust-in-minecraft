@@ -1,0 +1,116 @@
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath "com.guardsquare:proguard-gradle:7.8.1"
+	}
+}
+
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"rustak" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+base {
+	archivesName = "rust-in-minecraft"
+}
+
+// Rust's assets are not part of the source: the installer extracts them from the player's own Rust copy into
+// generated/ and adds them to the jar. Dev builds pick generated/ up when it exists; -PcodeOnly leaves it out
+// (that jar is the one that can be shared).
+if (!project.hasProperty("codeOnly") && file("generated").exists()) {
+	sourceSets.main.resources.srcDir "generated"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+// -Pobfuscate: ProGuard renames the mod's own classes and members (in Mojang names, before Loom remaps the jar to
+// intermediary), so the shared jar doesn't read like its source. Mixins and entrypoints keep their names (proguard.pro).
+if (project.hasProperty("obfuscate")) {
+	def obfJar = layout.buildDirectory.file("obf/rust-in-minecraft-obf.jar")
+	tasks.register("obfuscateJar", proguard.gradle.ProGuardTask) {
+		dependsOn tasks.jar
+		injars tasks.jar.archiveFile
+		outjars obfJar
+		libraryjars file("${System.getProperty('java.home')}/jmods"), jarfilter: "!**.jar", filter: "!module-info.class"
+		libraryjars files(configurations.compileClasspath, configurations.clientCompileClasspath).files.unique()
+		configuration file("proguard.pro")
+		printmapping layout.buildDirectory.file("obf/mapping.txt")
+	}
+	tasks.named("remapJar") {
+		dependsOn "obfuscateJar"
+		inputFile = obfJar
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	// no sources jar: the source isn't shared
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE.txt")
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}

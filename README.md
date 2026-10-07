@@ -85,6 +85,23 @@ The mod's code is separate from Rust's content. The installer reads the models, 
 
 Rust and its content belong to Facepunch Studios. This project is an unofficial fan project and is not affiliated with or endorsed by Facepunch Studios or Mojang Studios.
 
+## Source code
+
+The Minecraft mod's source is in [`mod/`](mod) (Fabric, Java 21). The installer is not open source.
+
+Building it with `./gradlew build` gives a jar **without Rust's content**: the models, textures, animations and sounds
+only come from the installer, built from your own copy of Rust. For playing, use the installer from
+[Releases](../../releases/latest).
+
 ## License
 
-Copyright © 2026 misterbobrust. All rights reserved. The mod is free to download and play; see [LICENSE.txt](LICENSE.txt).
+Copyright © 2026 misterbobrust. The mod's source code is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.txt): you may use, study, modify and share it for any noncommercial
+purpose. Commercial use (for example on a paid or monetised server) needs a separate licence; contact misterbobrust.
+
+The licence covers only this project's own code and resources, not Rust's content, which belongs to Facepunch Studios.
+
+### Contributing
+
+Pull requests are welcome. By submitting a contribution, you grant misterbobrust a perpetual, worldwide,
+irrevocable licence to use, modify, sublicense and relicense it, including commercially.
