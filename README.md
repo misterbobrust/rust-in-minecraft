@@ -62,7 +62,7 @@ All items are in the **Rust in Minecraft** creative tab. English and Russian int
 
 - Windows
 - **Rust** installed (Steam)
-- Minecraft **1.21.11** with [Fabric Loader](https://fabricmc.net/use/installer/) 0.19 or newer
+- Minecraft **1.21.11** with [Fabric Loader](https://fabricmc.net/use/installer/) 0.17.3 or newer
 - About 4 GB of free RAM and 3 GB of free disk space while building
 
 ## Install
