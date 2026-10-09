@@ -2,6 +2,7 @@ package local.rustak.client.building;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import local.rustak.building.BuildingEntity;
+import local.rustak.building.RoofShape;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -14,6 +15,7 @@ public class BuildingRenderer extends EntityRenderer<BuildingEntity, BuildingRen
 		int piece, grade;
 		float yaw;
 		BuildLight.Lit lit;
+		long shape;
 	}
 
 	public BuildingRenderer(EntityRendererProvider.Context context) {
@@ -31,12 +33,13 @@ public class BuildingRenderer extends EntityRenderer<BuildingEntity, BuildingRen
 		state.piece = b.piece();
 		state.grade = b.grade();
 		state.yaw = b.yawRad();
+		state.shape = RoofShape.mask(b);
 		state.lit = BuildLight.get(b);
 	}
 
 	@Override
 	public void submit(State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera) {
-		BuildMesh.get(state.piece, state.grade).submit(pose, collector, state.yaw, state.lightCoords, -1, false, state.lit);
+		BuildMesh.get(state.piece, state.grade, state.shape).submit(pose, collector, state.yaw, state.lightCoords, -1, false, state.lit);
 		super.submit(state, pose, collector, camera);
 	}
 }

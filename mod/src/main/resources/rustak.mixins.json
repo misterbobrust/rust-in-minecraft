@@ -1,1 +1,1 @@
-{"required":true,"package":"local.rustak.mixin","compatibilityLevel":"JAVA_21","mixins":["AvatarMixin","BlockStateBaseMixin","EntityMixin","FallingBlockMixin","PlayerMixin","StandingAndWallBlockItemAccessor"],"injectors":{"defaultRequire":1}}
+{"required":true,"package":"local.rustak.mixin","compatibilityLevel":"JAVA_21","mixins":["AvatarMixin","BlockStateBaseMixin","EntityMixin","FallingBlockMixin","PlayerMixin","PlayerSprintMixin","StandingAndWallBlockItemAccessor"],"injectors":{"defaultRequire":1}}

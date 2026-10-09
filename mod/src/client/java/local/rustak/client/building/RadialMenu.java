@@ -33,6 +33,7 @@ public final class RadialMenu {
 	private static final int ICON_DISABLED = argb(0.169f, 0.162f, 0.143f, 0.322f), ICON_ACTIVE = argb(0.804f, 0.255f, 0.169f, 0.784f);
 	private static final int CENTER_DISC = argb(1f, 1f, 1f, 0.392f), TEXT = argb(0.969f, 0.922f, 0.882f, 1f), TEXT_DIM = argb(0.67f, 0.6f, 0.54f, 1f);
 	private static final int DESCRIPTION = argb(0.969f, 0.922f, 0.882f, 0.8f);
+	private static final int CURSOR = argb(0.45f, 0.9f, 0.35f, 1f), CURSOR_GLOW = argb(0.45f, 0.9f, 0.35f, 0.35f);
 	private static final FontDescription BOLD = new FontDescription.Resource(RustAk.id("rust_bold"));
 	private static final FontDescription REGULAR = new FontDescription.Resource(RustAk.id("rust_regular"));
 
@@ -87,14 +88,7 @@ public final class RadialMenu {
 		}
 	}
 
-	/** For menus held on a key (a door's E): releasing it picks the hovered option, or closes without one. */
-	public static void pickHovered() {
-		if (!open) return;
-		if (selected >= 0 && options.get(selected).enabled()) pick();
-		else cancel();
-	}
-
-	/** Right button released: closes without picking (Rust picks with the left button). */
+	/** Closes without picking (the held button or key let go; Rust picks with the left button). */
 	public static void cancel() {
 		if (!open) return;
 		open = false;
@@ -158,6 +152,11 @@ public final class RadialMenu {
 			text(g, o.title(), BOLD, x, y - 22 * unit, 19 * unit, o.enabled() ? TEXT : TEXT_DIM);
 			wrapped(g, o.description(), REGULAR, x, y + 4 * unit, 12 * unit, 175 * unit, DESCRIPTION);
 		}
+		// the cursor the mouse steers: its full reach is the ring's outer edge
+		float k = OUTER * R / 200;
+		float px = x + (float) cx * k, py = y + (float) cy * k;
+		pie(g, pose, px, py, 0, 9 * unit, 0, 360, CURSOR_GLOW);
+		pie(g, pose, px, py, 0, 5 * unit, 0, 360, CURSOR);
 	}
 
 	private static void pie(GuiGraphics g, Matrix3x2f pose, float x, float y, float inner, float outer, float a0, float a1, int color) {

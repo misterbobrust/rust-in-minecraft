@@ -24,14 +24,15 @@ public final class Building {
 			case BuildPayload.PLACE_DOOR -> placeDoor(level, player, p);
 			case BuildPayload.DOOR_TOGGLE, BuildPayload.DOOR_KNOCK -> {
 				if (level.getEntity(p.entity()) instanceof DoorEntity d && d.box().closest(player.getEyePosition()).distanceTo(player.getEyePosition()) <= 3.5) {
-					if (p.action() == BuildPayload.DOOR_TOGGLE) d.toggle();
+					if (p.action() == BuildPayload.DOOR_TOGGLE) d.toggle(player);
 					else d.knock();
 				}
 			}
 			case BuildPayload.UPGRADE, BuildPayload.DEMOLISH, BuildPayload.REPAIR, BuildPayload.ROTATE -> {
 				if (!player.getMainHandItem().is(RustAk.HAMMER)) return;
 				if (p.action() == BuildPayload.DEMOLISH && level.getEntity(p.entity()) instanceof DoorEntity door) {
-					if (door.box().closest(player.getEyePosition()).distanceTo(player.getEyePosition()) <= 6) door.pickup(player);
+					// like Rust, a door with a lock on it doesn't come off
+					if (!door.hasLock() && door.box().closest(player.getEyePosition()).distanceTo(player.getEyePosition()) <= 6) door.pickup(player);
 					return;
 				}
 				if (p.action() == BuildPayload.DEMOLISH && level.getEntity(p.entity()) instanceof local.rustak.decor.DecorEntity d) {
@@ -55,10 +56,17 @@ public final class Building {
 		if (!player.getMainHandItem().is(RustAk.PLANNER) || p.piece() < 0 || p.piece() >= BuildingDefs.ALL.size()) return;
 		BuildingDefs.Piece def = BuildingDefs.piece(p.piece());
 		if (p.pos().distanceTo(player.getEyePosition()) > def.maxDistance + 4) return;
+		if (RoofPlacement.isRoof(def) && !RoofPlacement.valid(level, def, p.pos(), p.yaw())) return;
+		if (!RoofPlacement.isRoof(def) && !PlacementRules.spatial(level, def, p.pos(), p.yaw())) return;
+		if (p.entity() >= 0 || def.sockets.stream().noneMatch(s -> s.terrain)) {
+			if (!(level.getEntity(p.entity()) instanceof BuildingEntity target) || !PlacementRules.visibleAttachment(level, player.getEyePosition(), player.getViewVector(1), def, p.pos(), p.yaw(), target)) return;
+		}
 		Obb box = BuildingEntity.obbAt(def, p.pos(), p.yaw());
 		// one block per spot: Rust's sockets are monogamous, so a second identical piece is refused
 		for (BuildingEntity other : BuildingCollision.blocksNear(level, new AABB(box.center(), box.center()).inflate(0.5))) {
-			if (other.piece() == p.piece() && other.obb().center().distanceTo(box.center()) < 0.3) return;
+			if (other.piece() == p.piece() && other.obb().center().distanceTo(box.center()) < 0.3) {
+				if (!RoofPlacement.isRoof(def) || Math.abs(Math.atan2(Math.sin(other.yawRad() - p.yaw()), Math.cos(other.yawRad() - p.yaw()))) < Math.toRadians(2)) return;
+			}
 		}
 		BuildingEntity b = BuildingEntity.place(level, p.piece(), p.pos(), p.yaw());
 		FxPayload.send(level, "frame_place", box.center(), new Vec3(0, 1, 0), b.getId());

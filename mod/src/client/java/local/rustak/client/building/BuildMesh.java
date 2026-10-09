@@ -33,6 +33,22 @@ public final class BuildMesh {
 		return at("models/build/" + BuildingDefs.PIECES[piece] + "_" + BuildingDefs.GRADES[grade] + ".bin");
 	}
 
+	/** Combines only the sections selected for this arrangement of neighbours. */
+	public static BuildMesh get(int piece, int grade, long mask) {
+		var sections = BuildingDefs.piece(piece).grades[grade].sections;
+		if (sections.isEmpty()) return get(piece, grade);
+		String key = piece + ":" + grade + ":" + mask;
+		BuildMesh cached = CACHE.get(key);
+		if (cached != null) return cached;
+		BuildMesh mesh = new BuildMesh();
+		for (int i = 0; i < sections.size(); i++) {
+			var s = sections.get(i);
+			if ((mask & (1L << i)) != 0 && s.visible) mesh.parts.addAll(at(s.mesh).parts);
+		}
+		CACHE.put(key, mesh);
+		return mesh;
+	}
+
 	/** Any mesh in this format, by its path under assets/rustak (a door's frame or leaf, models/doors). */
 	public static BuildMesh at(String path) {
 		return CACHE.computeIfAbsent(path, BuildMesh::load);

@@ -31,7 +31,7 @@ public final class Stability {
 	private static final Map<BuildingEntity, Long> RETRY = new WeakHashMap<>();
 	private static final int STRIKE_TICKS = 1;
 
-	private record WorldSocket(BuildingDefs.Socket socket, Vector3f pos, Vector3f forward) {
+	record WorldSocket(BuildingDefs.Socket socket, Vector3f pos, Quaternionf rot) {
 	}
 
 	private record Connection(BuildingEntity entity, boolean noStability) {
@@ -77,22 +77,24 @@ public final class Stability {
 		Quaternionf rot = new Quaternionf().rotationY(b.yawRad());
 		List<WorldSocket> out = new ArrayList<>();
 		for (BuildingDefs.Socket s : b.def().sockets) {
-			if (s.terrain) continue;
+			if (s.terrain || s.neighbour) continue;
 			Vector3f p = rot.transform(new Vector3f(s.pos)).add((float) b.getX(), (float) b.getY(), (float) b.getZ());
-			Vector3f f = new Quaternionf(rot).mul(s.rot).transform(new Vector3f(0, 0, 1));
-			out.add(new WorldSocket(s, p, f));
+			out.add(new WorldSocket(s, p, new Quaternionf(rot).mul(s.rot)));
 		}
 		return out;
 	}
 
-	/** Socket_Base.CanConnect: complementary sockets of one kind at one spot (construction sockets also facing alike). */
-	private static boolean connects(WorldSocket a, WorldSocket b) {
+	/** Side supports join through overlapping selection boxes; base attachments match position and direction. */
+	static boolean connects(WorldSocket a, WorldSocket b) {
 		BuildingDefs.Socket x = a.socket, y = b.socket;
-		boolean stabilityX = x.cls.equals("StabilitySocket"), stabilityY = y.cls.equals("StabilitySocket");
-		if (stabilityX != stabilityY || (!x.male && !y.male) || (!x.female && !y.female)) return false;
-		if (stabilityX) return a.pos.distance(b.pos) < 0.3f; // their select boxes overlap
+		if (!x.cls.equals(y.cls) || (!x.male && !y.male) || (!x.female && !y.female)) return false;
+		if (x.cls.equals("StabilitySocket")) {
+			Vector3f ac = a.rot.transform(new Vector3f(x.selectCenter)).add(a.pos);
+			Vector3f bc = b.rot.transform(new Vector3f(y.selectCenter)).add(b.pos);
+			return RoofShape.boxesOverlap(ac, a.rot, x.selectSize, bc, b.rot, y.selectSize);
+		}
 		if (x.type <= 0 || x.type != y.type || a.pos.distance(b.pos) > 0.06f) return false;
-		float angle = a.forward.angle(b.forward);
+		float angle = a.rot.transform(new Vector3f(0, 0, 1)).angle(b.rot.transform(new Vector3f(0, 0, 1)));
 		if (x.male && x.female || y.male && y.female) angle = Math.min(angle, (float) Math.PI - angle);
 		return angle < Math.toRadians(5);
 	}

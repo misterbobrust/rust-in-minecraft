@@ -31,6 +31,17 @@ abstract class GameRendererMixin {
 
 	@Unique
 	private static boolean rustak$worldBob;
+	/** The camera animation actually shown, and the blend into the current one (from, start, length in seconds). */
+	@Unique
+	private static final org.joml.Vector3f rustak$camShown = new org.joml.Vector3f(), rustak$camFrom = new org.joml.Vector3f();
+	@Unique
+	private static Viewmodel rustak$camVm;
+	@Unique
+	private static int rustak$camPlays;
+	@Unique
+	private static long rustak$camStart;
+	@Unique
+	private static float rustak$camBlend = 0.25f;
 
 	/** Marks renderLevel's bobView call: the world camera keeps vanilla's bob. */
 	@WrapOperation(method = "renderLevel", at = @At(value = "INVOKE",
@@ -58,10 +69,23 @@ abstract class GameRendererMixin {
 	private void rustak$cameraAnimation(PoseStack pose, float partialTick, CallbackInfo ci) {
 		Gun gun = rustak$gun();
 		Viewmodel vm = gun == null ? null : gun.loadedViewmodel();
-		if (vm != null && vm.cameraEuler(rustak$euler)) {
-			pose.mulPose(Axis.ZP.rotationDegrees(rustak$euler.z));
-			pose.mulPose(Axis.XP.rotationDegrees(rustak$euler.x));
-			pose.mulPose(Axis.YP.rotationDegrees(rustak$euler.y));
+		if (vm == null || !vm.cameraEuler(rustak$euler)) rustak$euler.zero();
+		// a new item or a new action: blend from where the camera was instead of jumping to the clip's first frame
+		int plays = vm == null ? 0 : vm.plays();
+		long now = System.nanoTime();
+		if (vm != rustak$camVm || plays != rustak$camPlays) {
+			rustak$camBlend = vm != rustak$camVm ? 0.25f : Math.max(0.05f, vm.fadeSeconds());
+			rustak$camVm = vm;
+			rustak$camPlays = plays;
+			rustak$camFrom.set(rustak$camShown);
+			rustak$camStart = now;
+		}
+		float t = Math.min(1, (now - rustak$camStart) / 1e9f / rustak$camBlend);
+		rustak$camFrom.lerp(rustak$euler, t * t * (3 - 2 * t), rustak$camShown);
+		if (rustak$camShown.lengthSquared() > 1e-8f) {
+			pose.mulPose(Axis.ZP.rotationDegrees(rustak$camShown.z));
+			pose.mulPose(Axis.XP.rotationDegrees(rustak$camShown.x));
+			pose.mulPose(Axis.YP.rotationDegrees(rustak$camShown.y));
 		}
 	}
 

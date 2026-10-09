@@ -67,6 +67,23 @@ public final class DoorDefs {
 		}
 	}
 
+	/**
+	 * The code lock on a door, where Rust's lock anchor on the door puts it: the leaf it turns with (-1 for none) and its box
+	 * at rest in the door's space; states lists the light meshes exported besides the body (locked, unlocked, blocked).
+	 */
+	public static final class Lock {
+		public final int hinge;
+		public final Vector3f centre, half;
+		public final List<String> states = new ArrayList<>();
+
+		Lock(JsonObject o) {
+			hinge = o.get("hinge").getAsInt();
+			centre = mirror(vec(o.getAsJsonArray("center")));
+			half = vec(o.getAsJsonArray("half"));
+			for (var e : o.getAsJsonArray("states")) states.add(e.getAsString());
+		}
+	}
+
 	public static final class Door {
 		public final String name, material;
 		public final boolean isDouble, hasFrame;
@@ -77,6 +94,8 @@ public final class DoorDefs {
 		public final float closeHit;
 		public final BuildingDefs.Socket socket;
 		public final List<Hinge> hinges = new ArrayList<>();
+		/** Where a code lock sits, or null when the installer found no lock anchor (a lock then works but isn't drawn). */
+		public final Lock lock;
 
 		Door(String name, JsonObject o) {
 			this.name = name;
@@ -108,6 +127,7 @@ public final class DoorDefs {
 			socket = new BuildingDefs.Socket(sock);
 			JsonObject clips = o.getAsJsonObject("clips");
 			for (var h : o.getAsJsonArray("hinges")) hinges.add(new Hinge(h.getAsJsonObject(), clips));
+			lock = o.has("lock") && o.get("lock").isJsonObject() ? new Lock(o.getAsJsonObject("lock")) : null;
 			openTime = time(clips, "open");
 			closeTime = time(clips, "close");
 			closeHit = clips.has("close") ? 1.07f / Math.max(0.01f, clips.getAsJsonObject("close").get("speed").getAsFloat()) : closeTime;

@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import local.rustak.building.BuildingCollision;
 import local.rustak.building.BuildingEntity;
 import local.rustak.building.Obb;
+import local.rustak.building.RoofShape;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
@@ -91,10 +92,11 @@ public final class BuildLight {
 	/** This block's per-vertex lighting, or null until its sky view is traced (the entity's own light is used then). */
 	public static Lit get(BuildingEntity b) {
 		Cache c = CACHE.computeIfAbsent(b, k -> new Cache());
-		BuildMesh mesh = BuildMesh.get(b.piece(), b.grade());
+		BuildMesh mesh = BuildMesh.get(b.piece(), b.grade(), RoofShape.mask(b));
 		Matrix4f m = new Matrix4f().translation((float) b.getX(), (float) b.getY(), (float) b.getZ()).rotateY(b.yawRad());
 		if (c.m != null && !m.equals(c.m)) generation++; // it shades its neighbours differently now
-		return lit(c, b.level(), mesh, m, b.obb().bounds());
+		if (c.mesh != null && c.mesh != mesh) generation++;
+		return lit(c, b.level(), mesh, m, b.obb().bounds(), null);
 	}
 
 	/**
@@ -111,10 +113,19 @@ public final class BuildLight {
 			Vector3f pv = d.def().hinges.get(part - 1).pivot;
 			m.translate(pv).rotateY(d.def().turn(part - 1, open, 100)).translate(-pv.x, -pv.y, -pv.z);
 		}
-		return lit(cs[slot], d.level(), mesh, m, d.getBoundingBox());
+		// the doorway it hangs in doesn't shade it: its beam over a closed leaf would hide the sky straight up, so the
+		// leaf came out darker shut than open; the room around it still does
+		Vec3 socket = d.socketPos();
+		Lit l = lit(cs[slot], d.level(), mesh, m, d.getBoundingBox(), b -> b.obb().contains(socket, 0.2));
+		if (l == null && part > 0) {
+			// the other pose's light until this one's is worked out: unlit, the leaf would flash bright as it swings
+			Cache other = cs[open ? slot - 1 : slot + 1];
+			if (other != null) l = other.lit;
+		}
+		return l;
 	}
 
-	private static Lit lit(Cache c, Level level, BuildMesh mesh, Matrix4f m, AABB box) {
+	private static Lit lit(Cache c, Level level, BuildMesh mesh, Matrix4f m, AABB box, java.util.function.Predicate<BuildingEntity> skip) {
 		if (c.mesh != mesh || !m.equals(c.m)) {
 			c.mesh = mesh;
 			c.m = m;
@@ -136,7 +147,7 @@ public final class BuildLight {
 			c.job = null;
 		}
 		if (c.gen != generation && c.job == null) {
-			List<Obb> solids = occluders(level, box);
+			List<Obb> solids = occluders(level, box, skip);
 			float[][] world = c.world;
 			c.jobGen = generation;
 			c.job = WORKER.submit(() -> visibility(world, solids));
@@ -194,10 +205,10 @@ public final class BuildLight {
 	}
 
 	/** Collision boxes of every building block that can stand between the box and the sky. */
-	private static List<Obb> occluders(Level level, AABB box) {
+	private static List<Obb> occluders(Level level, AABB box, java.util.function.Predicate<BuildingEntity> skip) {
 		AABB around = new AABB(box.minX - REACH, box.minY - 1, box.minZ - REACH, box.maxX + REACH, box.maxY + REACH, box.maxZ + REACH);
 		List<Obb> out = new ArrayList<>();
-		for (BuildingEntity o : BuildingCollision.blocksNear(level, around)) out.addAll(o.solids());
+		for (BuildingEntity o : BuildingCollision.blocksNear(level, around)) if (skip == null || !skip.test(o)) out.addAll(o.solids());
 		return out;
 	}
 

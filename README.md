@@ -25,15 +25,24 @@ Facepunch's **Rust** inside **Minecraft 1.21.11** (Fabric): the guns, the buildi
 - Rocket splash damage with Rust's falloff.
 
 ### Building
-- **Building Plan** with Rust's pie menu: foundation, wall, floor, window wall, doorway, half wall and wall frame.
+- **Building Plan** with Rust's pie menu and **17 pieces**: square and triangle foundations and floors, walls, window walls, doorways, half walls, low walls, wall frames, square and triangle floor frames, square and triangle roofs, foundation steps, L Stairs and U Stairs.
 - Rust's socket snapping: pieces click onto each other the way they do in Rust.
+- Roof corners and wall shapes adapt to neighbouring pieces; diagonal wall cuts use matching rendering, collision and destruction shapes.
+- Foundation steps attach to exposed foundation sides as well as square top attachments. Interior L and U stairs attach to square foundations and floors, with quarter-turn placement.
 - **Hammer**: swing to repair, hold right-click for the pie menu to upgrade (twig → wood → stone → sheet metal → armored), rotate or demolish. With the hammer in hand, aim at a piece to see its stability and health.
 - **Stability**: ported from Rust. Every piece shows `% STABLE`; remove a foundation and what stood on it collapses.
 - **Health and raiding**: bullets and rockets damage building pieces and doors through each tier's real protection values.
+- Aligned walking surfaces and continuous slope contact for roofs and stairs. Crouching holds at exterior edges while leaving floor-frame openings usable.
+- Destruction fragments follow the visible building sections, land on world/building surfaces, shrink and disappear after resting.
 
 ### Doors
 - Single and double doors, wood and sheet metal, in doorways and wall frames.
 - Rust's open/close animations and sounds. Tap **E** to open or close, hold **E** for the pie menu (open/close, knock).
+- **Code Locks** on single and double doors: master and guest codes, an on-screen keypad, access lists, lock/unlock and removal through the pie menu, and shock/temporary lockout after repeated wrong codes. Codes are kept on the server.
+
+### Movement
+- **Shift** to sprint and **Ctrl** to crouch by default. Existing custom bindings stay editable.
+- Ground movement uses Rust's walk, run and crouch speed targets. Running requires held forward/sprint input and stops while crouching, aiming or firing; Minecraft's acceleration and movement effects still apply.
 
 ### Decorating
 - Place **any Minecraft block** freely inside your base, with a live hologram of the block you hold.
@@ -55,8 +64,12 @@ All items are in the **Rust in Minecraft** creative tab. English and Russian int
 | Pie menu (Building Plan, Hammer) | Hold right mouse |
 | Rotate a piece (Building Plan) | `R` |
 | Reload | `R` |
+| Sprint | Hold `Shift` while moving forward |
+| Crouch | `Ctrl` |
 | Open / close a door | Tap `E` |
-| Door pie menu (open/close, knock) | Hold `E` |
+| Door / code-lock pie menu | Hold `E` |
+| Place a held door or code lock | Left mouse |
+| Enter a code | Number keys or click the keypad |
 
 ## Requirements
 

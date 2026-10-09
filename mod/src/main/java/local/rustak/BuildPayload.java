@@ -27,6 +27,10 @@ public record BuildPayload(int action, int piece, Vec3 pos, float yaw, int entit
 		return new BuildPayload(PLACE, piece, pos, yaw, -1, 0);
 	}
 
+	public static BuildPayload place(int piece, Vec3 pos, float yaw, int target) {
+		return new BuildPayload(PLACE, piece, pos, yaw, target, 0);
+	}
+
 	public static BuildPayload placeDoor(int kind, Vec3 pos, float yaw) {
 		return new BuildPayload(PLACE_DOOR, kind, pos, yaw, -1, 0);
 	}

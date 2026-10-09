@@ -98,6 +98,26 @@ jar {
 	from("LICENSE.txt")
 }
 
+tasks.register('verifyRoofRules', JavaExec) {
+	dependsOn testClasses
+	classpath = sourceSets.test.runtimeClasspath
+	classpath += files('generated')
+	mainClass = 'local.rustak.building.RoofRulesCheck'
+}
+
+sourceSets.test.compileClasspath += sourceSets.client.output
+
+tasks.register('verifyRoofPlacement', JavaExec) {
+	dependsOn testClasses, compileClientJava
+	classpath = sourceSets.test.runtimeClasspath + sourceSets.client.runtimeClasspath + files('generated')
+	mainClass = 'local.rustak.client.building.RoofPlacementCheck'
+	onlyIf { file('generated/assets/rustak/building/roof.json').exists() }
+}
+
+// These fixtures use main methods and run through the verification tasks above.
+test { failOnNoDiscoveredTests = false }
+check { dependsOn 'verifyRoofRules', 'verifyRoofPlacement' }
+
 // configure the maven publication
 publishing {
 	publications {

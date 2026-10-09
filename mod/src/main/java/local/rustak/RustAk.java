@@ -84,6 +84,11 @@ public class RustAk implements ModInitializer {
 		EntityType.Builder.<local.rustak.building.DoorEntity>of(local.rustak.building.DoorEntity::new, MobCategory.MISC).sized(1f, 2f)
 			.clientTrackingRange(10).updateInterval(40).build(DOOR_KEY));
 
+	// the code lock: deployed onto a door's lock slot (Rust stacks them by 10)
+	public static final ResourceKey<Item> CODE_LOCK_KEY = ResourceKey.create(Registries.ITEM, id("code_lock"));
+	public static final Item CODE_LOCK = Registry.register(BuiltInRegistries.ITEM, CODE_LOCK_KEY,
+		new Item(new Item.Properties().setId(CODE_LOCK_KEY).stacksTo(10)));
+
 	private static Item doorItem(String name) {
 		ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
 		return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties().setId(key).stacksTo(1)));
@@ -111,7 +116,7 @@ public class RustAk implements ModInitializer {
 	private static final Map<UUID, Long> lastRocket = new HashMap<>();
 
 	// Rust guns: damage against Rust's 100 hp scaled to Minecraft's 20 (the AK's 50 is 8 here)
-	static final float DAMAGE_SCALE = 0.16f;
+	public static final float DAMAGE_SCALE = 0.16f;
 	public static final ResourceKey<Item> SAR_KEY = ResourceKey.create(Registries.ITEM, id("semi_auto_rifle"));
 	public static final Item SAR = Registry.register(BuiltInRegistries.ITEM, SAR_KEY, new Item(new Item.Properties().setId(SAR_KEY).stacksTo(1)));
 	public static final ResourceKey<Item> SAP_KEY = ResourceKey.create(Registries.ITEM, id("semi_auto_pistol"));
@@ -151,6 +156,8 @@ public class RustAk implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(ExplosionFxPayload.TYPE, ExplosionFxPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(FxPayload.TYPE, FxPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(BuildPayload.TYPE, BuildPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(CodeLockPayload.TYPE, CodeLockPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(CodeLockPayload.TYPE, (payload, ctx) -> local.rustak.building.CodeLock.handle(ctx.player(), payload));
 		net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(local.rustak.building.Stability::tick);
 		PayloadTypeRegistry.playC2S().register(local.rustak.decor.DecorPayload.TYPE, local.rustak.decor.DecorPayload.CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(local.rustak.decor.DecorPayload.TYPE, (payload, ctx) -> local.rustak.decor.Decor.place(ctx.player(), payload));
@@ -169,6 +176,7 @@ public class RustAk implements ModInitializer {
 				entries.accept(PLANNER);
 				entries.accept(HAMMER);
 				for (Item door : DOOR_ITEMS) entries.accept(door);
+				entries.accept(CODE_LOCK);
 			})
 			.build());
 	}

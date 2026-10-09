@@ -126,15 +126,43 @@ public class BuildingEntity extends Entity {
 
 	/** The collision boxes in the world (one for most pieces; a doorway's sides and lintel, a window's frame). */
 	public List<Obb> solids() {
-		BuildingDefs.Piece def = def();
-		float yaw = yawRad();
-		double cs = Math.cos(yaw), sn = Math.sin(yaw);
-		Vec3 pos = position();
-		List<Obb> out = new ArrayList<>(def.colliders.size());
-		for (Vector3f[] box : def.colliders) {
-			Vector3f c = box[0], e = box[1];
-			out.add(new Obb(pos.add(c.x * cs + c.z * sn, c.y, -c.x * sn + c.z * cs), e.x, e.y, e.z, yaw));
+		return solidsAt(def(), position(), yawRad(), grade(), RoofShape.mask(this));
+	}
+
+	/** Placement uses the section's tighter clearance geometry when walking cells extend beyond the mesh. */
+	public List<Obb> placementSolids() {
+		return placementSolidsAt(def(), position(), yawRad(), grade(), RoofShape.mask(this));
+	}
+
+	public static List<Obb> solidsAt(BuildingDefs.Piece def, Vec3 pos, float yaw, int grade, long mask) {
+		return solidsAt(def, pos, yaw, grade, mask, false);
+	}
+
+	public static List<Obb> placementSolidsAt(BuildingDefs.Piece def, Vec3 pos, float yaw, int grade, long mask) {
+		return solidsAt(def, pos, yaw, grade, mask, true);
+	}
+
+	private static List<Obb> solidsAt(BuildingDefs.Piece def, Vec3 pos, float yaw, int grade, long mask, boolean placement) {
+		List<BuildingDefs.Section> sections = def.grades[grade].sections;
+		if (!sections.isEmpty()) {
+			List<Obb> out = new ArrayList<>();
+			for (int i = 0; i < sections.size(); i++) if ((mask & (1L << i)) != 0) {
+				var section = sections.get(i);
+				out.addAll(solidsAt(placement ? section.placementColliders : section.colliders, pos, yaw));
+			}
+			return out;
 		}
+		return solidsAt(def, pos, yaw);
+	}
+
+	/** The collision boxes a piece would have at this spot. */
+	public static List<Obb> solidsAt(BuildingDefs.Piece def, Vec3 pos, float yaw) {
+		return solidsAt(def.colliders, pos, yaw);
+	}
+
+	private static List<Obb> solidsAt(List<Vector3f[]> boxes, Vec3 pos, float yaw) {
+		List<Obb> out = new ArrayList<>(boxes.size());
+		for (Vector3f[] box : boxes) out.add(Obb.at(box, pos, yaw));
 		return out;
 	}
 
@@ -148,7 +176,9 @@ public class BuildingEntity extends Entity {
 	@Override
 	protected AABB makeBoundingBox(Vec3 pos) {
 		if (entityData == null) return super.makeBoundingBox(pos);
-		return obbAt(def(), pos, yawRad()).bounds();
+		Vector3f c = def().collisionBoundsCenter, e = def().collisionBoundsExtents;
+		double cs = Math.cos(yawRad()), sn = Math.sin(yawRad());
+		return new Obb(pos.add(c.x * cs + c.z * sn, c.y, -c.x * sn + c.z * cs), e.x, e.y, e.z, yawRad()).bounds();
 	}
 
 	@Override

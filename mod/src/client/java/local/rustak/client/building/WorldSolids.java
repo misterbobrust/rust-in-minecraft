@@ -75,6 +75,7 @@ public final class WorldSolids {
 	public static float muffle(Level l, Vec3 listener, Vec3 pos) {
 		refresh(l);
 		if (solids.isEmpty() || listener.distanceToSqr(pos) < 1) return 0;
+		pos = clearOf(l, pos);
 		float a = indoor(l, listener), b = indoor(l, pos);
 		float m = Math.abs(a - b);
 		BuildingCollision.Hit wall = BuildingCollision.raycast(l, listener, pos);
@@ -82,7 +83,19 @@ public final class WorldSolids {
 		return Math.min(1, m);
 	}
 
-	/** 0 under the open sky, 1 in a closed room (BuildLight's sky view). */
+	/**
+	 * A sound made on a floor (a footstep, something dropped) sits on or just inside its surface: taken there it would
+	 * count as under a roof and behind the floor. It is heard from just above whatever solid it's in.
+	 */
+	private static Vec3 clearOf(Level l, Vec3 p) {
+		for (int i = 0; i < 4; i++) {
+			Vec3 q = p.add(0, i * 0.35, 0);
+			if (!blocked(l, new AABB(q, q).inflate(0.05))) return q;
+		}
+		return p;
+	}
+
+		/** 0 under the open sky, 1 in a closed room (BuildLight's sky view). */
 	private static float indoor(Level l, Vec3 p) {
 		return Math.clamp((1 - BuildLight.skyFactor(l, p)) / 0.75f, 0, 1);
 	}

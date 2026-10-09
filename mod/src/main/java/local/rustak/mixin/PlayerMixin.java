@@ -2,8 +2,10 @@ package local.rustak.mixin;
 
 import local.rustak.building.BuildingCollision;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,6 +17,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(Player.class)
 abstract class PlayerMixin {
+	@Inject(method = "maybeBackOffFromEdge", at = @At("HEAD"), cancellable = true)
+	private void rustak$enterFrameOpening(Vec3 movement, MoverType type, CallbackInfoReturnable<Vec3> cir) {
+		Player self = (Player) (Object) this;
+		if (self.onGround() && self.isShiftKeyDown() && !self.getAbilities().flying && movement.y <= 0
+				&& (type == MoverType.SELF || type == MoverType.PLAYER)
+				&& BuildingCollision.internalOpening(self.level(), self.getBoundingBox(), movement)) cir.setReturnValue(movement);
+	}
+
 	/** Standing up (or any pose change) also needs room among building blocks: no standing up under a window's top. */
 	@Inject(method = "canPlayerFitWithinBlocksAndEntitiesWhen", at = @At("RETURN"), cancellable = true)
 	private void rustak$roomAmongBuildings(Pose pose, CallbackInfoReturnable<Boolean> cir) {

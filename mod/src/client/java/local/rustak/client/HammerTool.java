@@ -66,7 +66,9 @@ public final class HammerTool extends Gun {
 				// Rust's hammer pickup: the door back as an item
 				int id = door.getId();
 				String name = RustAk.DOOR_ITEMS[door.kind()].getName().getString();
-				RadialMenu.open(List.of(new RadialMenu.Option(RustAk.id("textures/gui/door_open.png"), I18n.get("rustak.hammer.pickup"), name, true)),
+				// not while a lock is on it, as in Rust
+				RadialMenu.open(List.of(new RadialMenu.Option(RustAk.id("textures/gui/door_open.png"), I18n.get("rustak.hammer.pickup"),
+						door.hasLock() ? I18n.get("rustak.codelock.remove_first") : name, !door.hasLock())),
 					i -> ClientPlayNetworking.send(BuildPayload.onBlock(BuildPayload.DEMOLISH, id, 0)));
 			} else if (aimed instanceof local.rustak.decor.DecorEntity d) {
 				// Minecraft blocks set down in the base: only demolish

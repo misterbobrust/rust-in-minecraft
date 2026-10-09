@@ -104,7 +104,16 @@ public class RocketEntity extends Entity {
 				new AABB(from, end).inflate(0.5), e -> e.isPickable() && !e.isSpectator() && (tickCount > 4 || !e.getUUID().equals(owner)), 0.1f);
 			if (eh != null) hit = eh;
 			BuildingCollision.Hit block = BuildingCollision.raycast(level, from, to);
-			if (block != null && block.distance() < from.distanceTo(hit.getType() == HitResult.Type.MISS ? to : hit.getLocation())) {
+			BuildingCollision.DoorHit door = BuildingCollision.raycastDoors(level, from, to);
+			double other = from.distanceTo(hit.getType() == HitResult.Type.MISS ? to : hit.getLocation());
+			if (door != null && door.distance() < other && (block == null || door.distance() < block.distance())) {
+				// a door's leaf stops it like a wall
+				Vec3 at = door.location().subtract(v.normalize().scale(0.1));
+				setPos(at);
+				explode(at, v.normalize().reverse());
+				return;
+			}
+			if (block != null && block.distance() < other) {
 				Vec3 at = block.location().subtract(v.normalize().scale(0.1));
 				setPos(at);
 				explode(at, block.block().obb().normalAt(block.location()));

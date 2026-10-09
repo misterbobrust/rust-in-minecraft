@@ -15,8 +15,8 @@ import net.minecraft.client.player.LocalPlayer;
 
 /** Rust's Building Plan: right mouse picks the piece from a pie menu, R rotates, left mouse places. */
 public final class PlannerTool extends Gun {
-	// Rust's building plan order (Planner.buildableList): foundation, floor, wall, doorway, window, half wall
-	private static final int[] MENU_ORDER = {0, 2, 1, 4, 3, 6, 5}; // Rust's planner order
+	// Building menu order: foundations, steps, floors, walls, frames, roofs.
+	private static final int[] MENU_ORDER = {0, 7, 14, 15, 16, 2, 8, 1, 4, 3, 6, 5, 11, 12, 13, 9, 10};
 	public int piece;
 	float rotation;
 	public BuildingPlacement.Placement placement;
@@ -78,7 +78,7 @@ public final class PlannerTool extends Gun {
 		boolean swallowed = RadialMenu.swallowsAttack(); // evaluated every frame so it can clear once the button is up
 		boolean down = mc.options.keyAttack.isDown() && mc.screen == null && !RadialMenu.isOpen() && !swallowed; // no wait for the draw animation: Rust lets you build right away
 		if (down && !lmb && cooldown <= 0 && placement != null && placement.valid()) {
-			ClientPlayNetworking.send(BuildPayload.place(piece, placement.pos(), placement.yaw()));
+			ClientPlayNetworking.send(BuildPayload.place(piece, placement.pos(), placement.yaw(), placement.target()));
 			viewmodel().play("apply", 0.05f);
 			cooldown = 0.25f;
 		}

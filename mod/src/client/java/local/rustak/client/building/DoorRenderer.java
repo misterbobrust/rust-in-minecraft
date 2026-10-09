@@ -9,13 +9,14 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.CameraRenderState;
 
-/** Draws a door: its frame and its leaves where the open or close animation has them (DoorClient.draw). */
+/** Draws a door: its frame, its leaves where the open or close animation has them, and its lock (DoorClient.draw). */
 public class DoorRenderer extends EntityRenderer<DoorEntity, DoorRenderer.State> {
 	public static class State extends EntityRenderState {
 		int kind;
 		float yaw;
 		float[] turns = new float[0];
 		BuildLight.Lit[] lit;
+		int lock = -1;
 	}
 
 	public DoorRenderer(EntityRendererProvider.Context context) {
@@ -34,6 +35,7 @@ public class DoorRenderer extends EntityRenderer<DoorEntity, DoorRenderer.State>
 		state.yaw = d.yawRad();
 		state.turns = d.def() == null ? new float[0] : d.turns(partialTick);
 		state.lit = d.def() == null ? null : lit(d);
+		state.lock = DoorClient.lockState(d);
 	}
 
 	/** BuildLight's lighting for the frame and each leaf (null entries until traced). */
@@ -47,7 +49,7 @@ public class DoorRenderer extends EntityRenderer<DoorEntity, DoorRenderer.State>
 
 	@Override
 	public void submit(State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera) {
-		DoorClient.draw(pose, collector, state.kind, state.yaw, state.turns, state.lightCoords, -1, false, state.lit);
+		DoorClient.draw(pose, collector, state.kind, state.yaw, state.turns, state.lightCoords, -1, false, state.lit, state.lock);
 		super.submit(state, pose, collector, camera);
 	}
 }

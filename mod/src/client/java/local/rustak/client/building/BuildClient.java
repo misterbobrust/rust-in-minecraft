@@ -65,6 +65,12 @@ public final class BuildClient {
 	public static Object hammerTarget(LocalPlayer p) {
 		Gun gun = RustAkClient.held(p);
 		if (gun == null || gun.item != RustAk.HAMMER || RadialMenu.isOpen()) return null;
+		return aimTarget(p);
+	}
+
+	/** The building block, door or decor block aimed at within 4 m, whatever is in hand (null for none). */
+	static Object aimTarget(LocalPlayer p) {
+		if (p == null) return null;
 		Vec3 eye = p.getEyePosition(), dir = p.getViewVector(1);
 		BuildingCollision.Hit hit = BuildingCollision.raycast(p.level(), eye, eye.add(dir.scale(4)));
 		double best = hit == null ? 4 : hit.distance();
@@ -93,7 +99,7 @@ public final class BuildClient {
 			Vec3 cam = mc.gameRenderer.getMainCamera().position();
 			pose.pushPose();
 			pose.translate(door.getX() - cam.x, door.getY() - cam.y, door.getZ() - cam.z);
-			DoorClient.draw(pose, queue, door.kind(), door.yawRad(), door.turns(1), LightTexture.FULL_BRIGHT, HIGHLIGHT, true, null);
+			DoorClient.draw(pose, queue, door.kind(), door.yawRad(), door.turns(1), LightTexture.FULL_BRIGHT, HIGHLIGHT, true, null, -1);
 			pose.popPose();
 		} else if (target instanceof DecorEntity d) {
 			DecorClient.highlight(pose, queue, d, HIGHLIGHT);
@@ -101,7 +107,7 @@ public final class BuildClient {
 			Vec3 cam = mc.gameRenderer.getMainCamera().position();
 			pose.pushPose();
 			pose.translate(b.getX() - cam.x, b.getY() - cam.y, b.getZ() - cam.z);
-			BuildMesh.get(b.piece(), b.grade()).submit(pose, queue, b.yawRad(), LightTexture.FULL_BRIGHT, HIGHLIGHT, true, null);
+			BuildMesh.get(b.piece(), b.grade(), local.rustak.building.RoofShape.mask(b)).submit(pose, queue, b.yawRad(), LightTexture.FULL_BRIGHT, HIGHLIGHT, true, null);
 			pose.popPose();
 		}
 	}
@@ -118,8 +124,11 @@ public final class BuildClient {
 		g.pose().pushMatrix();
 		g.pose().translate(g.guiWidth() / 2f, HUD_Y(g));
 		g.pose().scale(HUD_SCALE, HUD_SCALE);
-		int w = 150, x = -w / 2, y = 0;
 		String hp = Math.round(health) + " / " + Math.round(max);
+		int w = 150, x = -w / 2, y = 0;
+		// a name too long for the room left of the numbers ends in an ellipsis
+		int room = w - mc.font.width(hp) - 8;
+		if (mc.font.width(left) > room) left = mc.font.plainSubstrByWidth(left, room - mc.font.width("...")).stripTrailing() + "...";
 		g.drawString(mc.font, left, x, y, 0xFFFFFFFF, true);
 		g.drawString(mc.font, hp, x + w - mc.font.width(hp), y, 0xFFFFFFFF, true);
 		float f = Math.clamp(health / max, 0, 1);
@@ -137,6 +146,11 @@ public final class BuildClient {
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer p = mc.player;
 		Object target = hammerTarget(p);
+		if (target == null && p != null && !RadialMenu.isOpen() && mc.screen == null) {
+			// without the hammer, like Rust: only something damaged shows its health
+			Object aimed = aimTarget(p);
+			if (aimed instanceof DoorEntity d && d.health() < d.def().health || aimed instanceof BuildingEntity b && b.health() < b.maxHealth()) target = aimed;
+		}
 		if (target instanceof DecorEntity d) {
 			g.drawCenteredString(mc.font, d.state().getBlock().getName(), g.guiWidth() / 2, HUD_Y(g), 0xFFFFFFFF);
 			return;
@@ -155,7 +169,9 @@ public final class BuildClient {
 			BuildingPlacement.Placement pl = planner.placement;
 			pose.pushPose();
 			pose.translate(pl.pos().x - cam.x, pl.pos().y - cam.y, pl.pos().z - cam.z);
-			BuildMesh.get(planner.piece, 0).submit(pose, queue, pl.yaw(), LightTexture.FULL_BRIGHT, pl.valid() ? GHOST_OK : GHOST_BAD, true);
+			long shape = local.rustak.building.RoofShape.mask(Minecraft.getInstance().level,
+				local.rustak.building.BuildingDefs.piece(planner.piece), pl.pos(), pl.yaw(), 0, null);
+			BuildMesh.get(planner.piece, 0, shape).submit(pose, queue, pl.yaw(), LightTexture.FULL_BRIGHT, pl.valid() ? GHOST_OK : GHOST_BAD, true);
 			pose.popPose();
 		}
 	}

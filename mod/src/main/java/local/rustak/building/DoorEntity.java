@@ -34,6 +34,12 @@ public class DoorEntity extends Entity {
 	/** Game time of the last open or close (Long.MIN_VALUE as an int pair isn't needed: -100000 means long ago). */
 	private static final EntityDataAccessor<Integer> TOGGLED = SynchedEntityData.defineId(DoorEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Float> HEALTH = SynchedEntityData.defineId(DoorEntity.class, EntityDataSerializers.FLOAT);
+	/** The code lock as clients see it: LOCK_* bits, and its users and guests ("users|guests", UUIDs) but never a code. */
+	private static final EntityDataAccessor<Byte> LOCK = SynchedEntityData.defineId(DoorEntity.class, EntityDataSerializers.BYTE);
+	private static final EntityDataAccessor<String> LOCK_USERS = SynchedEntityData.defineId(DoorEntity.class, EntityDataSerializers.STRING);
+	private static final int LOCK_PRESENT = 1, LOCK_LOCKED = 2, LOCK_BLOCKED = 4, LOCK_HAS_CODE = 8, LOCK_HAS_GUEST_CODE = 16;
+	/** Server side: the lock's codes and who it lets through. */
+	final CodeLock.State lock = new CodeLock.State();
 	private long nextKnock;
 	/** Ticks since the toggle at which the pending sound plays (Rust's clip events), and its key. */
 	private int soundAt = -1;
@@ -128,10 +134,11 @@ public class DoorEntity extends Entity {
 			(maxZ - minZ) / 2, yawRad());
 	}
 
-	/** Opens or closes it (E), like Rust: not while it's still swinging. */
-	public void toggle() {
+	/** Opens or closes it (E): not while it's still swinging, nor through a lock that doesn't know the player. */
+	public void toggle(Player player) {
 		DoorDefs.Door d = def();
 		if (sinceToggle(0) < (isOpen() ? d.openTime : d.closeTime)) return;
+		if (!CodeLock.mayPass(this, player)) return;
 		boolean open = !isOpen();
 		entityData.set(OPEN, open);
 		entityData.set(TOGGLED, (int) level().getGameTime());
@@ -150,6 +157,71 @@ public class DoorEntity extends Entity {
 		sound("door_" + def().material + "_knock");
 	}
 
+	public boolean hasLock() {
+		return (entityData.get(LOCK) & LOCK_PRESENT) != 0;
+	}
+
+	public boolean isLocked() {
+		return (entityData.get(LOCK) & LOCK_LOCKED) != 0;
+	}
+
+	/** Too many wrong codes: no code entry for a while. */
+	public boolean lockBlocked() {
+		return (entityData.get(LOCK) & LOCK_BLOCKED) != 0;
+	}
+
+	public boolean lockHasCode() {
+		return (entityData.get(LOCK) & LOCK_HAS_CODE) != 0;
+	}
+
+	public boolean lockHasGuestCode() {
+		return (entityData.get(LOCK) & LOCK_HAS_GUEST_CODE) != 0;
+	}
+
+	/** Whether the lock lets this player through: 2 knows the code, 1 knows the guest code, 0 neither. */
+	public int lockAccess(java.util.UUID player) {
+		String[] parts = entityData.get(LOCK_USERS).split("\\|", -1);
+		String id = player.toString();
+		if (java.util.Arrays.asList(parts[0].split(",")).contains(id)) return 2;
+		return parts.length > 1 && java.util.Arrays.asList(parts[1].split(",")).contains(id) ? 1 : 0;
+	}
+
+	/** Sends the lock's state (not its codes) to clients. */
+	void syncLock() {
+		int bits = 0;
+		if (lock.present) {
+			bits = LOCK_PRESENT | (lock.locked ? LOCK_LOCKED : 0) | (lock.blocked ? LOCK_BLOCKED : 0) | (lock.code.isEmpty() ? 0 : LOCK_HAS_CODE)
+				| (lock.guestCode.isEmpty() ? 0 : LOCK_HAS_GUEST_CODE);
+		}
+		entityData.set(LOCK, (byte) bits);
+		entityData.set(LOCK_USERS, lock.present ? CodeLock.join(lock.users) + "|" + CodeLock.join(lock.guests) : "");
+	}
+
+	/** The lock's box where it is now (it turns with its leaf), or null when the door has no lock place. */
+	public Obb lockBox(float partialTick) {
+		DoorDefs.Lock l = def() == null ? null : def().lock;
+		if (l == null) return null;
+		float turn = l.hinge >= 0 && l.hinge < def().hinges.size() ? turns(partialTick)[l.hinge] : 0;
+		Vector3f pv = l.hinge >= 0 && l.hinge < def().hinges.size() ? def().hinges.get(l.hinge).pivot : new Vector3f();
+		double tc = Math.cos(turn), ts = Math.sin(turn), c = Math.cos(yawRad()), s = Math.sin(yawRad());
+		double rx = l.centre.x - pv.x, rz = l.centre.z - pv.z;
+		double lx = pv.x + rx * tc + rz * ts, lz = pv.z - rx * ts + rz * tc;
+		Vec3 centre = position().add(lx * c + lz * s, l.centre.y, -lx * s + lz * c);
+		return new Obb(centre, l.half.x, l.half.y, l.half.z, yawRad() + turn);
+	}
+
+	/** Where the lock's sounds and sparks come from. */
+	public Vec3 lockCentre() {
+		Obb box = lockBox(0);
+		return box != null ? box.center() : position().add(0, 1, 0);
+	}
+
+	void lockSound(String key) {
+		SoundEvent e = RustAk.SOUNDS.get(key);
+		Vec3 at = lockCentre();
+		if (e != null) level().playSound(null, at.x, at.y, at.z, e, SoundSource.BLOCKS, 1, 1);
+	}
+
 	private void sound(String key) {
 		SoundEvent e = RustAk.SOUNDS.get(key);
 		if (e != null) level().playSound(null, getX(), getY() + 1, getZ(), e, SoundSource.BLOCKS, 1, 1);
@@ -160,14 +232,20 @@ public class DoorEntity extends Entity {
 		super.tick();
 		if (!(level() instanceof ServerLevel level)) return;
 		if (tickCount == soundAt && soundKey != null) sound(soundKey);
+		CodeLock.tick(this, level.getGameTime());
 		if ((tickCount + getId()) % 20 == 0 && !hung()) destroy(level);
+	}
+
+	/** Where the door's socket is in the world: inside the doorway (or wall frame) it hangs in. */
+	public Vec3 socketPos() {
+		Vector3f p = def().socket.pos;
+		double c = Math.cos(yawRad()), s = Math.sin(yawRad());
+		return position().add(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);
 	}
 
 	/** It hangs in a building block: one whose box takes in the door's socket. */
 	private boolean hung() {
-		Vector3f p = def().socket.pos;
-		double c = Math.cos(yawRad()), s = Math.sin(yawRad());
-		Vec3 at = position().add(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);
+		Vec3 at = socketPos();
 		for (BuildingEntity b : BuildingCollision.blocksNear(level(), new AABB(at, at).inflate(0.5))) if (b.obb().contains(at, 0.2)) return true;
 		return false;
 	}
@@ -183,7 +261,7 @@ public class DoorEntity extends Entity {
 		else destroy(level);
 	}
 
-	/** Broken (or its doorway gone): the break sound, no item back. */
+	/** Broken (or its doorway gone): the break sound, no item back (nor the lock's). */
 	public void destroy(ServerLevel level) {
 		sound("fx_gib_" + (def().material.equals("wood") ? "wood" : "metal"));
 		discard();
@@ -203,6 +281,8 @@ public class DoorEntity extends Entity {
 		builder.define(OPEN, false);
 		builder.define(TOGGLED, -100000);
 		builder.define(HEALTH, 200f);
+		builder.define(LOCK, (byte) 0);
+		builder.define(LOCK_USERS, "");
 	}
 
 	@Override
@@ -248,6 +328,16 @@ public class DoorEntity extends Entity {
 		entityData.set(YAW, in.getFloatOr("Yaw", 0));
 		entityData.set(OPEN, in.getBooleanOr("Open", false));
 		entityData.set(HEALTH, in.getFloatOr("Health", 200));
+		lock.clear();
+		lock.present = in.getBooleanOr("Lock", false);
+		if (lock.present) {
+			lock.locked = in.getBooleanOr("Locked", false);
+			lock.code = in.getStringOr("Code", "");
+			lock.guestCode = in.getStringOr("GuestCode", "");
+			CodeLock.read(lock.users, in.getStringOr("LockUsers", ""));
+			CodeLock.read(lock.guests, in.getStringOr("LockGuests", ""));
+		}
+		syncLock();
 		setBoundingBox(makeBoundingBox(position()));
 	}
 
@@ -257,6 +347,14 @@ public class DoorEntity extends Entity {
 		out.putFloat("Yaw", yawRad());
 		out.putBoolean("Open", isOpen());
 		out.putFloat("Health", health());
+		if (lock.present) {
+			out.putBoolean("Lock", true);
+			out.putBoolean("Locked", lock.locked);
+			out.putString("Code", lock.code);
+			out.putString("GuestCode", lock.guestCode);
+			out.putString("LockUsers", CodeLock.join(lock.users));
+			out.putString("LockGuests", CodeLock.join(lock.guests));
+		}
 	}
 
 	@Override

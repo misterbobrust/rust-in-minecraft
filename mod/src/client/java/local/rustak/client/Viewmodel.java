@@ -43,9 +43,13 @@ public final class Viewmodel {
 		current = rig.newPose();
 	}
 
+	/** Counts actions started, so the camera can tell a new one (even the same clip again) and blend into it. */
+	int plays;
+
 	public void play(String clip, float fadeSeconds) {
 		ViewmodelRig.Clip c = rig.clips.get(clip);
 		if (c == null) return;
+		plays++;
 		snapshot();
 		actionClip = c;
 		actionStart = fadeStart = System.nanoTime();
@@ -159,6 +163,15 @@ public final class Viewmodel {
 		}
 		outPos.set(-swayX + bobX - LEFT_OFFSET_RUN * s, swayY + bobY - 0.05f * s, punch + 0.02f * s);
 		outRotDeg.set(-18 * s, 32 * s, 12 * s);
+	}
+
+	/** Seconds the current action takes to blend in. */
+	public float fadeSeconds() {
+		return fade;
+	}
+
+	public int plays() {
+		return plays;
 	}
 
 	/** The camera clip of the current action, in degrees (Unity euler x, y, z). */

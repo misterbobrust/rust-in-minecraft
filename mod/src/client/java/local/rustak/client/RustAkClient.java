@@ -21,11 +21,16 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client entry: the Rust weapons, which one is in hand, recoil, and the rocket's renderer and effects. */
 public class RustAkClient implements ClientModInitializer {
-	static final List<Gun> GUNS = List.of(new AkGun(),
+	static final List<Gun> GUNS = new java.util.ArrayList<>(List.of(new AkGun(),
 		new HitscanGun(RustAk.GUNS.get(RustAk.SAR), new String[] {"attack-1", "attack-2"}, "attack-1_ads", "dryfire", "dryfire", 80, 0.5f),
 		new HitscanGun(RustAk.GUNS.get(RustAk.SAP), new String[] {"fire-1", "fire-2", "fire-3"}, "fire_ads", "dryfire", "dryfire", 70, 0.5f),
-		new RocketGun(), new PlannerTool(), new HammerTool());
-	static KeyMapping reloadKey;
+		new RocketGun(), new PlannerTool(), new HammerTool()));
+	static {
+		// doors and the code lock are held as the building plan
+		for (var door : RustAk.DOOR_ITEMS) GUNS.add(new PlaceableTool(door));
+		GUNS.add(new PlaceableTool(RustAk.CODE_LOCK));
+	}
+	public static KeyMapping reloadKey;
 	private static Gun selected;
 
 	// recoil still to apply, spread over its duration on render frames
@@ -70,6 +75,7 @@ public class RustAkClient implements ClientModInitializer {
 	}
 
 	private static void tick(Minecraft mc) {
+		RustMovementKeys.apply(mc.options);
 		FxManager.tick(mc);
 		LocalPlayer p = mc.player;
 		if (p != null) CrouchJump.tick(mc, p);
